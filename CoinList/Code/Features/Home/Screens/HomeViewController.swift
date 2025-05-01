@@ -9,33 +9,39 @@ import UIKit
 import Combine
 
 class HomeViewController: UIViewController {
-  
+
   private var viewModel = HomeViewModel()
   private var subs = Set<AnyCancellable>()
   private let tableView = UITableView()
   private let search = UISearchController(searchResultsController: nil)
-  
+
+  init(viewModel: HomeViewModel) {
+    self.viewModel = viewModel
+    super.init(nibName: nil, bundle: nil)
+  }
+
+  required init?(coder: NSCoder) {
+    fatalError("init(coder:) has not been implemented")
+  }
+
   override func viewDidLoad() {
     super.viewDidLoad()
 
-    title = "Coins"
     navigationItem.searchController = search
 
     tableView.register(CoinTableViewCell.self,
                        forCellReuseIdentifier: CoinTableViewCell.reuseID)
     tableView.dataSource = self
     tableView.delegate   = self
-    
+
     view.addSubview(tableView)
     tableView.frame = view.bounds
 
-    // Bind data → reload
     viewModel.$displayedVMs
       .receive(on: DispatchQueue.main)
       .sink { _ in self.tableView.reloadData() }
       .store(in: &subs)
 
-    // Bind search text → filter
     search.searchBar.delegate = self
 
     viewModel.fetchCoins()
@@ -74,7 +80,7 @@ extension HomeViewController: UITableViewDataSource {
 }
 
 extension HomeViewController: UITableViewDelegate {
-  
+
   func tableView(_ tableView: UITableView, didSelectRowAt indexPath: IndexPath) {
     tableView.deselectRow(at: indexPath, animated: true)
 
@@ -97,7 +103,6 @@ extension HomeViewController: UITableViewDelegate {
       guard let self = self else { return completion(false) }
       self.viewModel.toggleFavorite(uuid: vm.uuid)
 
-      // reload just this row so the checkmark updates
       self.tableView.reloadRows(at: [indexPath], with: .automatic)
 
       completion(true)

@@ -10,6 +10,7 @@ import UIKit
 class SceneDelegate: UIResponder, UIWindowSceneDelegate {
 
   var window: UIWindow?
+  let homeViewModel = HomeViewModel()
 
 
   func scene(_ scene: UIScene, willConnectTo session: UISceneSession, options connectionOptions: UIScene.ConnectionOptions) {
@@ -22,27 +23,29 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
   }
 
   func createHomeViewController() -> UIViewController {
-    let homeViewController = HomeViewController()
+    let homeViewController = HomeViewController(viewModel: homeViewModel)
 
     homeViewController.title = "Coin List"
-    homeViewController.tabBarItem = UITabBarItem(tabBarSystemItem: .featured,
+    homeViewController.tabBarItem = UITabBarItem(title: "Home",
+                                                 image: UIImage(systemName: "house"),
                                                  tag: 0)
     return UINavigationController(rootViewController: homeViewController)
   }
 
   func createFavoritesViewController() -> UIViewController {
-    let favoritesViewController = FavoritesViewController()
+    let favoritesViewController = FavoritesViewController(viewModel: homeViewModel)
 
     favoritesViewController.title = "Favorites"
-    favoritesViewController.tabBarItem = UITabBarItem(tabBarSystemItem: .favorites,
-                                                 tag: 0)
+    favoritesViewController.tabBarItem = UITabBarItem(title: "Favorites",
+                                                      image: UIImage(systemName: "star.fill"),
+                                                      tag: 1)
     return UINavigationController(rootViewController: favoritesViewController)
   }
 
   func createTabBarController() -> UITabBarController {
     let tabBarController = UITabBarController()
 
-    UITabBar.appearance().tintColor = .systemTeal
+    UITabBar.appearance().tintColor = .systemBrown
     tabBarController.viewControllers = [createHomeViewController(),
                                         createFavoritesViewController()]
     return tabBarController

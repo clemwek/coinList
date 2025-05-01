@@ -8,9 +8,9 @@
 import Foundation
 
 struct CoinCellViewModel {
-  
+
   private let coin: CoinModel
-  
+
   var uuid: String { coin.uuid }
   var name: String { coin.name }
   var iconURL: URL { URL(string: coin.iconUrl)! }
@@ -27,7 +27,7 @@ struct CoinCellViewModel {
 
   var priceValue: Double { Double(coin.price)  ?? 0 }
   var changeValue: Double { Double(coin.change) ?? 0 }
-  
+
   init(coin: CoinModel) {
     self.coin = coin
   }
