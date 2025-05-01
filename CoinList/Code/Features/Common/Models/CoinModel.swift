@@ -13,7 +13,7 @@ struct CoinModel: Codable {
   let symbol: String
   let name: String
   let color: String?
-  let iconUrl: URL
+  let iconUrl: String
   let marketCap: String
   let price: String
   let listedAt: Int
@@ -22,7 +22,7 @@ struct CoinModel: Codable {
   let rank: Int
   let sparkline: [String?]?
   let lowVolume: Bool
-  let coinrankingUrl: URL
+  let coinrankingUrl: String
   let volume24h: String
   let btcPrice: String
   let contractAddresses: [String]

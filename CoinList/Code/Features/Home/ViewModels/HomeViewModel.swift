@@ -9,23 +9,43 @@ import Foundation
 import Combine
 
 class HomeViewModel: ObservableObject {
-  
-  @Published var coins: [CoinModel] = []
+
+  @Published private(set) var allVMs: [CoinCellViewModel] = []
+  @Published var displayedVMs: [CoinCellViewModel] = []
+  @Published var favoriteUUIDs: Set<String> = []
   @Published var error: APIError?
-  
+
   private var cancellables = Set<AnyCancellable>()
-  
+
+  func toggleFavorite(uuid: String) {
+    if favoriteUUIDs.contains(uuid) {
+      favoriteUUIDs.remove(uuid)
+    } else {
+      favoriteUUIDs.insert(uuid)
+    }
+  }
+
   func fetchCoins() {
-    CoinActions.publisher()
+    let req = CoinRequest(page: 1, limit: 100)
+    CoinActions.publisher(request: req)
+      .map { $0.data.coins.map(CoinCellViewModel.init) }
       .receive(on: DispatchQueue.main)
-      .sink { [weak self] completion in
-        if case let .failure(err) = completion {
-          self?.error = err
-        }
-      } receiveValue: { [weak self] response in
-        self?.error = nil
-        self?.coins = response.data.coins
+      .sink { completion in
+        if case let .failure(e) = completion { self.error = e }
+      } receiveValue: { vms in
+        self.allVMs       = vms
+        self.displayedVMs = vms
       }
       .store(in: &cancellables)
+  }
+
+  func filter(by searchText: String) {
+    guard !searchText.isEmpty else {
+      displayedVMs = allVMs
+      return
+    }
+    displayedVMs = allVMs.filter {
+      $0.name.lowercased().contains(searchText.lowercased())
+    }
   }
 }

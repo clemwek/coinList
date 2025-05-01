@@ -9,67 +9,92 @@ import UIKit
 import Combine
 
 class HomeViewController: UIViewController {
-
-  private var viewModel: HomeViewModel!
-  private var subscriptions = Set<AnyCancellable>()
-
+  
+  private var viewModel = HomeViewModel()
+  private var subs = Set<AnyCancellable>()
   private let tableView = UITableView()
-  private let search    = UISearchController(searchResultsController: nil)
-
+  private let search = UISearchController(searchResultsController: nil)
+  
   override func viewDidLoad() {
     super.viewDidLoad()
-    viewModel = HomeViewModel()
-    setupUI()
-    setupBindings()
-    viewModel.fetchCoins()
-  }
 
-  private func setupUI() {
-    view.backgroundColor = .systemBackground
+    title = "Coins"
     navigationItem.searchController = search
-    // add & layout tableView…
+
+    tableView.register(CoinTableViewCell.self,
+                       forCellReuseIdentifier: CoinTableViewCell.reuseID)
+    tableView.dataSource = self
+    tableView.delegate   = self
+    
     view.addSubview(tableView)
     tableView.frame = view.bounds
-    tableView.dataSource = self
+
+    // Bind data → reload
+    viewModel.$displayedVMs
+      .receive(on: DispatchQueue.main)
+      .sink { _ in self.tableView.reloadData() }
+      .store(in: &subs)
+
+    // Bind search text → filter
+    search.searchBar.delegate = self
+
+    viewModel.fetchCoins()
   }
+}
 
-  private func setupBindings() {
-    // Reload when coins change
-    viewModel.$coins
-      .receive(on: DispatchQueue.main)
-      .sink { [weak self] _ in self?.tableView.reloadData() }
-      .store(in: &subscriptions)
+extension HomeViewController: UISearchBarDelegate {
 
-    // Show an alert on error
-    viewModel.$error
-      .compactMap { $0 }
-      .receive(on: DispatchQueue.main)
-      .sink { [weak self] err in
-        let alert = UIAlertController(
-          title: "Error",
-          message: err.rawValue,
-          preferredStyle: .alert
-        )
-        alert.addAction(.init(title: "OK", style: .default))
-        self?.present(alert, animated: true)
-      }
-      .store(in: &subscriptions)
+  func searchBar(_ sb: UISearchBar, textDidChange text: String) {
+    viewModel.filter(by: text)
   }
 }
 
 extension HomeViewController: UITableViewDataSource {
 
-  func tableView(_ tv: UITableView, numberOfRowsInSection section: Int) -> Int {
-    viewModel.coins.count
+  func tableView(_ tv: UITableView,
+                 numberOfRowsInSection s: Int) -> Int {
+    viewModel.displayedVMs.count
   }
 
-  func tableView(_ tv: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
-    // dequeue & configure with viewModel.coins[indexPath.row]
-    let cell = tv.dequeueReusableCell(withIdentifier: "Cell")
-    ?? UITableViewCell(style: .subtitle, reuseIdentifier: "Cell")
-    let coin = viewModel.coins[indexPath.row]
-    cell.textLabel?.text = coin.name
-    cell.detailTextLabel?.text = "$" + coin.price
+  func tableView(_ tv: UITableView,
+                 cellForRowAt indexPath: IndexPath) -> UITableViewCell {
+    let cell = tv.dequeueReusableCell(
+      withIdentifier: CoinTableViewCell.reuseID,
+      for: indexPath
+    ) as! CoinTableViewCell
+
+    let cellViewModel = viewModel.displayedVMs[indexPath.row]
+    cell.configure(with: cellViewModel)
+    cell.accessoryType = viewModel.favoriteUUIDs.contains(cellViewModel.uuid)
+       ? .checkmark
+       : .none
+
     return cell
+  }
+}
+
+extension HomeViewController: UITableViewDelegate {
+
+  func tableView(_ tableView: UITableView,
+                 trailingSwipeActionsConfigurationForRowAt indexPath: IndexPath
+  ) -> UISwipeActionsConfiguration? {
+    let vm = viewModel.displayedVMs[indexPath.row]
+    let isFav = viewModel.favoriteUUIDs.contains(vm.uuid)
+    
+    let action = UIContextualAction(
+      style: .normal,
+      title: isFav ? "Unfavorite" : "Favorite"
+    ) { [weak self] _, _, completion in
+      guard let self = self else { return completion(false) }
+      self.viewModel.toggleFavorite(uuid: vm.uuid)
+
+      // reload just this row so the checkmark updates
+      self.tableView.reloadRows(at: [indexPath], with: .automatic)
+
+      completion(true)
+    }
+    action.backgroundColor = isFav ? .systemGray : .systemOrange
+
+    return UISwipeActionsConfiguration(actions: [action])
   }
 }
