@@ -37,7 +37,12 @@ class HomeViewModel: ObservableObject {
       } receiveValue: { [weak self] coins in
         guard let self = self else { return }
         let newVMs = coins.map(CoinCellViewModel.init)
-        self.allVMs += newVMs
+
+        let filtered = newVMs.filter { new in
+          !self.allVMs.contains(where: { $0.uuid == new.uuid })
+        }
+
+        self.allVMs += filtered
         self.displayedVMs = self.allVMs
         self.currentPage += 1
       }

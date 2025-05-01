@@ -4,53 +4,64 @@
 //
 //  Created by Clement  Wekesa on 4/30/25.
 //
-
 import UIKit
 import Combine
 
 class FavoritesViewController: UIViewController {
-
+  // MARK: – Dependencies
   private let viewModel: HomeViewModel
-  private var subscriptions = Set<AnyCancellable>()
+  
+  // MARK: – UI
+  private let tableView = UITableView()
+  
+  // MARK: – State
   private var favoriteVMs: [CoinCellViewModel] = []
-
-  private let tableView: UITableView = {
-    let tv = UITableView()
-    tv.register(CoinTableViewCell.self,
-                forCellReuseIdentifier: CoinTableViewCell.reuseID)
-    return tv
-  }()
-
+  private var subscriptions = Set<AnyCancellable>()
+  
+  // MARK: – Init
   init(viewModel: HomeViewModel) {
     self.viewModel = viewModel
     super.init(nibName: nil, bundle: nil)
+    title = "Favorites"
   }
-
-  required init?(coder: NSCoder) {
-    fatalError("init(coder:) has not been implemented")
-  }
-
+  required init?(coder: NSCoder) { fatalError() }
+  
+  // MARK: – Lifecycle
   override func viewDidLoad() {
     super.viewDidLoad()
     view.backgroundColor = .systemBackground
-
-    tableView.translatesAutoresizingMaskIntoConstraints = false
-    tableView.dataSource = self
-    tableView.delegate   = self
-    view.addSubview(tableView)
-    NSLayoutConstraint.activate([
-      tableView.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor),
-      tableView.leadingAnchor.constraint(equalTo: view.leadingAnchor),
-      tableView.trailingAnchor.constraint(equalTo: view.trailingAnchor),
-      tableView.bottomAnchor.constraint(equalTo: view.bottomAnchor)
-    ])
-    
+    setupTableView()
     bindViewModel()
   }
   
+  // MARK: – Setup
+  private func setupTableView() {
+    tableView.translatesAutoresizingMaskIntoConstraints = false
+    tableView.register(
+      CoinTableViewCell.self,
+      forCellReuseIdentifier: CoinTableViewCell.reuseID
+    )
+    tableView.dataSource = self
+    tableView.delegate   = self
+    view.addSubview(tableView)
+    
+    NSLayoutConstraint.activate([
+      tableView.topAnchor.constraint(
+        equalTo: view.safeAreaLayoutGuide.topAnchor),
+      tableView.leadingAnchor.constraint(
+        equalTo: view.leadingAnchor),
+      tableView.trailingAnchor.constraint(
+        equalTo: view.trailingAnchor),
+      tableView.bottomAnchor.constraint(
+        equalTo: view.bottomAnchor)
+    ])
+  }
+  
+  // MARK: – Bindings
   private func bindViewModel() {
-    Publishers
-      .CombineLatest(viewModel.$allVMs, viewModel.$favoriteUUIDs)
+    // Combine allVMs + favoriteUUIDs, then filter
+    viewModel.$allVMs
+      .combineLatest(viewModel.$favoriteUUIDs)
       .map { allVMs, favUUIDs in
         allVMs.filter { favUUIDs.contains($0.uuid) }
       }
@@ -63,48 +74,52 @@ class FavoritesViewController: UIViewController {
   }
 }
 
+// MARK: – UITableViewDataSource
 extension FavoritesViewController: UITableViewDataSource {
-
-  func tableView(_ tv: UITableView,
-                 numberOfRowsInSection section: Int) -> Int {
+  func tableView(_ tv: UITableView, numberOfRowsInSection section: Int) -> Int {
     favoriteVMs.count
   }
   
-  func tableView(_ tv: UITableView,
-                 cellForRowAt indexPath: IndexPath
+  func tableView(
+    _ tv: UITableView,
+    cellForRowAt indexPath: IndexPath
   ) -> UITableViewCell {
+    let vm = favoriteVMs[indexPath.row]
     let cell = tv.dequeueReusableCell(
       withIdentifier: CoinTableViewCell.reuseID,
       for: indexPath
     ) as! CoinTableViewCell
-    cell.configure(with: favoriteVMs[indexPath.row])
+    cell.configure(with: vm)
     return cell
   }
 }
 
+// MARK: – UITableViewDelegate
 extension FavoritesViewController: UITableViewDelegate {
 
-  func tableView(_ tv: UITableView,
-                 didSelectRowAt indexPath: IndexPath) {
+  func tableView(
+    _ tv: UITableView,
+    didSelectRowAt indexPath: IndexPath
+  ) {
     tv.deselectRow(at: indexPath, animated: true)
     let vm = favoriteVMs[indexPath.row]
     let detailVC = CoinDetailViewController(uuid: vm.uuid)
     navigationController?.pushViewController(detailVC, animated: true)
   }
-
-  func tableView(_ tableView: UITableView,
-                 trailingSwipeActionsConfigurationForRowAt indexPath: IndexPath
+  
+  // Swipe left → unfavorite
+  func tableView(
+    _ tv: UITableView,
+    trailingSwipeActionsConfigurationForRowAt indexPath: IndexPath
   ) -> UISwipeActionsConfiguration? {
     let vm = favoriteVMs[indexPath.row]
     let action = UIContextualAction(
-      style: .normal,
+      style: .destructive,
       title: "Unfavorite"
     ) { [weak self] _, _, completion in
       self?.viewModel.toggleFavorite(uuid: vm.uuid)
       completion(true)
     }
-    action.backgroundColor = .systemRed
     return UISwipeActionsConfiguration(actions: [action])
   }
 }
-
