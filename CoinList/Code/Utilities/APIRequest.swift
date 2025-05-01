@@ -8,6 +8,9 @@
 import Foundation
 import Combine
 
+struct EmptyRequest: Encodable {}
+struct EmptyResponse: Decodable {}
+
 enum HTTPMethods: String {
 
   case get = "GET"

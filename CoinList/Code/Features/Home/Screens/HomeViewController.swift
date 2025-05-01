@@ -74,6 +74,15 @@ extension HomeViewController: UITableViewDataSource {
 }
 
 extension HomeViewController: UITableViewDelegate {
+  
+  func tableView(_ tableView: UITableView, didSelectRowAt indexPath: IndexPath) {
+    tableView.deselectRow(at: indexPath, animated: true)
+
+    let cellVM = viewModel.displayedVMs[indexPath.row]
+
+    let detailVC = CoinDetailViewController(uuid: cellVM.uuid)
+    navigationController?.pushViewController(detailVC, animated: true)
+  }
 
   func tableView(_ tableView: UITableView,
                  trailingSwipeActionsConfigurationForRowAt indexPath: IndexPath
