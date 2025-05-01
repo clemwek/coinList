@@ -5,30 +5,56 @@
 //  Created by Clement  Wekesa on 5/1/25.
 //
 
-import Foundation
+import UIKit
+import Combine
 
-struct CoinCellViewModel {
+class CoinCellViewModel: ObservableObject {
 
   private let coin: CoinModel
 
-  var uuid: String { coin.uuid }
-  var name: String { coin.name }
-  var iconURL: URL { URL(string: coin.iconUrl)! }
+  let uuid: String
+  let name: String
+  let priceText: String
+  let changeText: String
+  let changeValue: Double
+  @Published var iconImage: UIImage?
 
-  var priceText: String {
-    let p = Double(coin.price) ?? 0
-    return String(format: "$%.2f", p)
-  }
-
-  var changeText: String {
-    let c = Double(coin.change) ?? 0
-    return String(format: "%+.2f%%", c)
-  }
-
-  var priceValue: Double { Double(coin.price)  ?? 0 }
-  var changeValue: Double { Double(coin.change) ?? 0 }
+  private var cancellable: AnyCancellable?
 
   init(coin: CoinModel) {
-    self.coin = coin
+    self.coin        = coin
+    self.uuid        = coin.uuid
+    self.name        = coin.name
+    self.changeValue = Double(coin.change) ?? 0
+    self.priceText   = String(format: "$%.2f", Double(coin.price) ?? 0)
+    self.changeText  = String(format: "%+.2f%%", changeValue)
+
+    loadImage()
+  }
+
+  private func loadImage() {
+    let url = URL(string: coin.iconUrl)!
+    let nsUrl = url as NSURL
+
+    if let cached = ImageCache.shared.object(forKey: nsUrl) {
+      iconImage = cached
+      return
+    }
+
+    cancellable = URLSession.shared
+      .dataTaskPublisher(for: url)
+      .map(\.data)
+      .compactMap(UIImage.init)
+      .handleEvents(receiveOutput: { img in
+        ImageCache.shared.setObject((img ?? UIImage(named: "genCoin"))!, forKey: nsUrl)
+      })
+      .replaceError(with: nil)
+      .receive(on: DispatchQueue.main)
+      .assign(to: \.iconImage, on: self)
+  }
+
+  deinit {
+    cancellable?.cancel()
   }
 }
+

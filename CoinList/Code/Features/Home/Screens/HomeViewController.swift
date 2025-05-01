@@ -111,4 +111,8 @@ extension HomeViewController: UITableViewDelegate {
 
     return UISwipeActionsConfiguration(actions: [action])
   }
+  
+  func tableView(_ tv: UITableView, willDisplay cell: UITableViewCell, forRowAt idx: IndexPath) {
+    viewModel.loadMoreIfNeeded(at: idx.row)
+  }
 }

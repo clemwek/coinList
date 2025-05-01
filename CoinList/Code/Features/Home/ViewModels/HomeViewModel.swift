@@ -5,40 +5,53 @@
 //  Created by Clement  Wekesa on 4/30/25.
 //
 
-import Foundation
 import Combine
+import Foundation
 
 class HomeViewModel: ObservableObject {
-
+  // MARK: – Published outputs
   @Published private(set) var allVMs: [CoinCellViewModel] = []
-  @Published var displayedVMs: [CoinCellViewModel] = []
+  @Published private(set) var displayedVMs: [CoinCellViewModel] = []
   @Published var favoriteUUIDs: Set<String> = []
   @Published var error: APIError?
 
+  // MARK: – Internals
+  private var currentPage = 1
+  private let pageSize = 20
   private var cancellables = Set<AnyCancellable>()
+  private let api: APIService
 
-  func toggleFavorite(uuid: String) {
-    if favoriteUUIDs.contains(uuid) {
-      favoriteUUIDs.remove(uuid)
-    } else {
-      favoriteUUIDs.insert(uuid)
-    }
+  init(apiService: APIService = DefaultAPIService()) {
+    self.api = apiService
+    fetchNextPage()
   }
 
-  func fetchCoins() {
-    let req = CoinRequest(page: 1, limit: 100)
-    CoinActions.publisher(request: req)
-      .map { $0.data.coins.map(CoinCellViewModel.init) }
+  // MARK: – Paging
+  func fetchNextPage() {
+    api.fetchCoins(page: currentPage, limit: pageSize)
       .receive(on: DispatchQueue.main)
-      .sink { completion in
-        if case let .failure(e) = completion { self.error = e }
-      } receiveValue: { vms in
-        self.allVMs       = vms
-        self.displayedVMs = vms
+      .sink { [weak self] completion in
+        if case let .failure(err) = completion {
+          self?.error = err
+        }
+      } receiveValue: { [weak self] coins in
+        guard let self = self else { return }
+        let newVMs = coins.map(CoinCellViewModel.init)
+        self.allVMs += newVMs
+        self.displayedVMs = self.allVMs
+        self.currentPage += 1
       }
       .store(in: &cancellables)
   }
 
+  func loadMoreIfNeeded(at index: Int) {
+    let threshold = allVMs.count - 10
+    if index >= threshold {
+      fetchNextPage()
+    }
+  }
+
+  // MARK: – Search Filtering
   func filter(by searchText: String) {
     guard !searchText.isEmpty else {
       displayedVMs = allVMs
@@ -47,5 +60,24 @@ class HomeViewModel: ObservableObject {
     displayedVMs = allVMs.filter {
       $0.name.lowercased().contains(searchText.lowercased())
     }
+  }
+
+  // MARK: – Favorites
+  func toggleFavorite(uuid: String) {
+    if favoriteUUIDs.contains(uuid) {
+      favoriteUUIDs.remove(uuid)
+    } else {
+      favoriteUUIDs.insert(uuid)
+    }
+  }
+}
+
+extension HomeViewModel {
+
+  func fetchCoins() {
+    currentPage = 1
+    allVMs.removeAll()
+    displayedVMs.removeAll()
+    fetchNextPage()
   }
 }
