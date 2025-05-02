@@ -34,6 +34,10 @@ class HomeViewController: UIViewController {
 
     viewModel.fetchCoins()
   }
+  
+  @objc private func didPullToRefresh() {
+    viewModel.fetchCoins()
+  }
 
   private func setupSearchController() {
     navigationItem.searchController = searchController
@@ -52,6 +56,10 @@ class HomeViewController: UIViewController {
     tableView.delegate = self
     tableView.prefetchDataSource = self
     tableView.keyboardDismissMode = .onDrag
+
+    let refresh = UIRefreshControl()
+    refresh.addTarget(self, action: #selector(didPullToRefresh), for: .valueChanged)
+    tableView.refreshControl = refresh
 
     view.addSubview(tableView)
     NSLayoutConstraint.activate([
@@ -88,6 +96,14 @@ class HomeViewController: UIViewController {
         )
         alert.addAction(.init(title: "OK", style: .default))
         self?.present(alert, animated: true)
+      }
+      .store(in: &subs)
+
+    viewModel.$displayedVMs
+      .receive(on: DispatchQueue.main)
+      .sink { [weak self] _ in
+        self?.tableView.reloadData()
+        self?.tableView.refreshControl?.endRefreshing()
       }
       .store(in: &subs)
   }
