@@ -68,23 +68,18 @@ class CoinTableViewCell: UITableViewCell {
   }
 
   func configure(with vm: CoinCellViewModel) {
+    // cancel old bindings
     subscriptions.forEach { $0.cancel() }
     subscriptions.removeAll()
-    iconView.image = nil
 
     nameLabel.text   = vm.name
     priceLabel.text  = vm.priceText
     changeLabel.text = vm.changeText
     changeLabel.textColor = vm.changeValue >= 0 ? .systemGreen : .systemRed
 
-    if let img = vm.iconImage {
-      iconView.image = img
-    }
-
+    // bind the icon
     vm.$iconImage
-      .receive(on: DispatchQueue.main)
-      .prepend(vm.iconImage)
-      .compactMap { $0 }
+      .receive(on: RunLoop.main)
       .sink { [weak self] img in
         self?.iconView.image = img
       }

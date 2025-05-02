@@ -10,12 +10,12 @@ import Combine
 
 class HomeViewController: UIViewController {
 
-  private var viewModel = HomeViewModel()
+  private let viewModel: HomeViewModel
   private var subs = Set<AnyCancellable>()
   private let tableView = UITableView()
-  private let search = UISearchController(searchResultsController: nil)
+  private let searchController = UISearchController(searchResultsController: nil)
 
-  init(viewModel: HomeViewModel) {
+  init(viewModel: HomeViewModel = HomeViewModel()) {
     self.viewModel = viewModel
     super.init(nibName: nil, bundle: nil)
   }
@@ -26,31 +26,77 @@ class HomeViewController: UIViewController {
 
   override func viewDidLoad() {
     super.viewDidLoad()
+    view.backgroundColor = .systemBackground
 
-    navigationItem.searchController = search
-
-    tableView.register(CoinTableViewCell.self,
-                       forCellReuseIdentifier: CoinTableViewCell.reuseID)
-    tableView.dataSource = self
-    tableView.delegate   = self
-
-    view.addSubview(tableView)
-    tableView.frame = view.bounds
-
-    viewModel.$displayedVMs
-      .receive(on: DispatchQueue.main)
-      .sink { _ in self.tableView.reloadData() }
-      .store(in: &subs)
-
-    search.searchBar.delegate = self
+    setupSearchController()
+    setupTableView()
+    bindViewModel()
 
     viewModel.fetchCoins()
+  }
+
+  private func setupSearchController() {
+    navigationItem.searchController = searchController
+    searchController.obscuresBackgroundDuringPresentation = false
+    searchController.searchBar.delegate = self
+    navigationItem.hidesSearchBarWhenScrolling = false
+  }
+
+  private func setupTableView() {
+    tableView.translatesAutoresizingMaskIntoConstraints = false
+    tableView.register(CoinTableViewCell.self,
+                       forCellReuseIdentifier: CoinTableViewCell.reuseID)
+    tableView.register(LoadingTableViewCell.self,
+                       forCellReuseIdentifier: LoadingTableViewCell.reuseID)
+    tableView.dataSource = self
+    tableView.delegate = self
+    tableView.prefetchDataSource = self
+    tableView.keyboardDismissMode = .onDrag
+
+    view.addSubview(tableView)
+    NSLayoutConstraint.activate([
+      tableView.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor),
+      tableView.leadingAnchor.constraint(equalTo: view.leadingAnchor),
+      tableView.trailingAnchor.constraint(equalTo: view.trailingAnchor),
+      tableView.bottomAnchor.constraint(equalTo: view.bottomAnchor)
+    ])
+  }
+
+  private func bindViewModel() {
+    viewModel.$displayedVMs
+      .receive(on: DispatchQueue.main)
+      .sink { [weak self] _ in
+        self?.tableView.reloadData()
+      }
+      .store(in: &subs)
+
+    viewModel.$hasMorePages
+      .receive(on: DispatchQueue.main)
+      .sink { [weak self] _ in
+        self?.tableView.reloadData()
+      }
+      .store(in: &subs)
+
+    viewModel.$error
+      .compactMap { $0 }
+      .receive(on: DispatchQueue.main)
+      .sink { [weak self] err in
+        let alert = UIAlertController(
+          title: "Error",
+          message: err.localizedDescription,
+          preferredStyle: .alert
+        )
+        alert.addAction(.init(title: "OK", style: .default))
+        self?.present(alert, animated: true)
+      }
+      .store(in: &subs)
   }
 }
 
 extension HomeViewController: UISearchBarDelegate {
 
-  func searchBar(_ sb: UISearchBar, textDidChange text: String) {
+  func searchBar(_ sb: UISearchBar,
+                 textDidChange text: String) {
     viewModel.filter(by: text)
   }
 }
@@ -58,44 +104,56 @@ extension HomeViewController: UISearchBarDelegate {
 extension HomeViewController: UITableViewDataSource {
 
   func tableView(_ tv: UITableView,
-                 numberOfRowsInSection s: Int) -> Int {
-    viewModel.displayedVMs.count
+                 numberOfRowsInSection section: Int) -> Int {
+    let count = viewModel.displayedVMs.count
+    return viewModel.hasMorePages ? count + 1 : count
   }
 
   func tableView(_ tv: UITableView,
                  cellForRowAt indexPath: IndexPath) -> UITableViewCell {
-    let cell = tv.dequeueReusableCell(
-      withIdentifier: CoinTableViewCell.reuseID,
-      for: indexPath
-    ) as! CoinTableViewCell
-
-    let cellViewModel = viewModel.displayedVMs[indexPath.row]
-    cell.configure(with: cellViewModel)
-    cell.accessoryType = viewModel.favoriteUUIDs.contains(cellViewModel.uuid)
-       ? .checkmark
-       : .none
-
-    return cell
+    let count = viewModel.displayedVMs.count
+    if indexPath.row < count {
+      let cell = tv.dequeueReusableCell(
+        withIdentifier: CoinTableViewCell.reuseID,
+        for: indexPath
+      ) as! CoinTableViewCell
+      let vm = viewModel.displayedVMs[indexPath.row]
+      cell.configure(with: vm)
+      cell.accessoryType = viewModel.favoriteUUIDs.contains(vm.uuid) ? .checkmark : .none
+      return cell
+    } else {
+      let cell = tv.dequeueReusableCell(
+        withIdentifier: LoadingTableViewCell.reuseID,
+        for: indexPath
+      ) as! LoadingTableViewCell
+      cell.activityIndicator.startAnimating()
+      return cell
+    }
   }
 }
 
 extension HomeViewController: UITableViewDelegate {
 
-  func tableView(_ tableView: UITableView, didSelectRowAt indexPath: IndexPath) {
-    tableView.deselectRow(at: indexPath, animated: true)
+  func tableView(_ tv: UITableView,
+                 didSelectRowAt indexPath: IndexPath) {
+    let count = viewModel.displayedVMs.count
+    guard indexPath.row < count else { return }
 
-    let cellVM = viewModel.displayedVMs[indexPath.row]
-
-    let detailVC = CoinDetailViewController(uuid: cellVM.uuid)
+    tv.deselectRow(at: indexPath, animated: true)
+    let vm = viewModel.displayedVMs[indexPath.row]
+    let detailVC = CoinDetailViewController(uuid: vm.uuid)
     navigationController?.pushViewController(detailVC, animated: true)
   }
 
   func tableView(_ tableView: UITableView,
                  trailingSwipeActionsConfigurationForRowAt indexPath: IndexPath
   ) -> UISwipeActionsConfiguration? {
+    let count = viewModel.displayedVMs.count
+    guard indexPath.row < count else { return nil }
+
     let vm = viewModel.displayedVMs[indexPath.row]
     let isFav = viewModel.favoriteUUIDs.contains(vm.uuid)
-    
+
     let action = UIContextualAction(
       style: .normal,
       title: isFav ? "Unfavorite" : "Favorite"
@@ -111,8 +169,50 @@ extension HomeViewController: UITableViewDelegate {
 
     return UISwipeActionsConfiguration(actions: [action])
   }
-  
-  func tableView(_ tv: UITableView, willDisplay cell: UITableViewCell, forRowAt idx: IndexPath) {
-    viewModel.loadMoreIfNeeded(at: idx.row)
+
+  func tableView(_ tv: UITableView,
+                 willDisplay cell: UITableViewCell,
+                 forRowAt indexPath: IndexPath) {
+    if viewModel.hasMorePages && indexPath.row == viewModel.displayedVMs.count {
+      viewModel.fetchNextPage()
+    }
+  }
+}
+
+extension HomeViewController: UITableViewDataSourcePrefetching {
+
+  func tableView(_ tv: UITableView,
+                 prefetchRowsAt indexPaths: [IndexPath]) {
+    indexPaths.forEach { idx in
+      let count = viewModel.displayedVMs.count
+      if idx.row < count {
+        let vm = viewModel.displayedVMs[idx.row]
+        _ = vm.iconImage
+      }
+    }
+  }
+}
+
+
+private class LoadingTableViewCell: UITableViewCell {
+
+  static let reuseID = "LoadingCell"
+  let activityIndicator = UIActivityIndicatorView(style: .medium)
+
+  override init(style: UITableViewCell.CellStyle,
+                reuseIdentifier: String?) {
+    super.init(style: style, reuseIdentifier: reuseIdentifier)
+    
+    activityIndicator.translatesAutoresizingMaskIntoConstraints = false
+    contentView.addSubview(activityIndicator)
+    NSLayoutConstraint.activate([
+      activityIndicator.centerXAnchor.constraint(equalTo: contentView.centerXAnchor),
+      activityIndicator.centerYAnchor.constraint(equalTo: contentView.centerYAnchor)
+    ])
+    selectionStyle = .none
+  }
+
+  required init?(coder: NSCoder) {
+    fatalError("init(coder:) has not been implemented")
   }
 }

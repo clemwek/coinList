@@ -29,26 +29,13 @@ class CoinCellViewModel: ObservableObject {
     self.priceText   = String(format: "$%.2f", Double(coin.price) ?? 0)
     self.changeText  = String(format: "%+.2f%%", changeValue)
 
-    loadImage()
+    loadImage(from: coin.iconUrl)
   }
 
-  private func loadImage() {
-    let url = URL(string: coin.iconUrl)!
-    let nsUrl = url as NSURL
-
-    if let cached = ImageCache.shared.object(forKey: nsUrl) {
-      iconImage = cached
-      return
-    }
-
-    cancellable = URLSession.shared
-      .dataTaskPublisher(for: url)
-      .map(\.data)
-      .compactMap(UIImage.init)
-      .handleEvents(receiveOutput: { img in
-        ImageCache.shared.setObject((img ?? UIImage(named: "genCoin"))!, forKey: nsUrl)
-      })
-      .replaceError(with: nil)
+  private func loadImage(from urlString: String) {
+    guard let url = URL(string: urlString) else { return }
+    cancellable = ImageLoader.shared
+      .publisher(for: url)
       .receive(on: DispatchQueue.main)
       .assign(to: \.iconImage, on: self)
   }
@@ -57,4 +44,3 @@ class CoinCellViewModel: ObservableObject {
     cancellable?.cancel()
   }
 }
-

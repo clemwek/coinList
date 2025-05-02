@@ -9,6 +9,7 @@ import SwiftUI
 import Charts
 
 struct PerformanceChartView: View {
+
   let data: [Double]
 
   var body: some View {

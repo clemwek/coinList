@@ -6,10 +6,12 @@ struct CoinDetailResponse: Decodable {
   let data: CoinDetailData
 }
 
+
 struct CoinDetailData: Decodable {
 
   let coin: CoinDetail
 }
+
 
 struct CoinDetail: Decodable {
 
@@ -58,12 +60,14 @@ struct CoinDetail: Decodable {
   }
 }
 
+
 struct Link: Decodable {
 
   let name: String
   let url: URL
   let type: String
 }
+
 
 struct Supply: Decodable {
 
@@ -74,11 +78,13 @@ struct Supply: Decodable {
   let max: String?
 }
 
+
 struct AllTimeHigh: Decodable {
 
   let price: String
   let timestamp: Int
 }
+
 
 struct Notice: Decodable {
 

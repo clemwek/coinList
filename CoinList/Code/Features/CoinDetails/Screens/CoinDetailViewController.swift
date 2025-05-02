@@ -10,6 +10,7 @@ import Combine
 import SwiftUI
 
 class CoinDetailViewController: UIViewController {
+
   private let viewModel: CoinDetailViewModel
   private var subs = Set<AnyCancellable>()
 
@@ -32,42 +33,42 @@ class CoinDetailViewController: UIViewController {
     setupUI()
     bindViewModel()
   }
-  
+
   private func setupUI() {
     nameLabel.font  = .systemFont(ofSize: 24, weight: .bold)
     priceLabel.font = .systemFont(ofSize: 20, weight: .medium)
     segment.selectedSegmentIndex = 0
-    
+
     [nameLabel, priceLabel, segment, statsStack].forEach {
       $0.translatesAutoresizingMaskIntoConstraints = false
       view.addSubview($0)
     }
-    
+
     chartHost = UIHostingController(rootView: PerformanceChartView(data: []))
     addChild(chartHost)
     chartHost.view.translatesAutoresizingMaskIntoConstraints = false
     view.addSubview(chartHost.view)
     chartHost.didMove(toParent: self)
-    
+
     statsStack.axis = .vertical
     statsStack.spacing = 8
-    
+
     NSLayoutConstraint.activate([
       nameLabel.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor, constant: 16),
       nameLabel.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 16),
-      
+
       priceLabel.topAnchor.constraint(equalTo: nameLabel.bottomAnchor, constant: 8),
       priceLabel.leadingAnchor.constraint(equalTo: nameLabel.leadingAnchor),
-      
+
       segment.topAnchor.constraint(equalTo: priceLabel.bottomAnchor, constant: 16),
       segment.leadingAnchor.constraint(equalTo: nameLabel.leadingAnchor),
       segment.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -16),
-      
+
       chartHost.view.topAnchor.constraint(equalTo: segment.bottomAnchor, constant: 16),
       chartHost.view.leadingAnchor.constraint(equalTo: view.leadingAnchor),
       chartHost.view.trailingAnchor.constraint(equalTo: view.trailingAnchor),
       chartHost.view.heightAnchor.constraint(equalToConstant: 200),
-      
+
       statsStack.topAnchor.constraint(equalTo: chartHost.view.bottomAnchor, constant: 16),
       statsStack.leadingAnchor.constraint(equalTo: nameLabel.leadingAnchor),
       statsStack.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -16)

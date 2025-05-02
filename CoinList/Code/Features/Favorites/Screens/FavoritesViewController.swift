@@ -4,37 +4,34 @@
 //
 //  Created by Clement  Wekesa on 4/30/25.
 //
+
 import UIKit
 import Combine
 
 class FavoritesViewController: UIViewController {
-  // MARK: – Dependencies
+
   private let viewModel: HomeViewModel
-  
-  // MARK: – UI
   private let tableView = UITableView()
-  
-  // MARK: – State
   private var favoriteVMs: [CoinCellViewModel] = []
   private var subscriptions = Set<AnyCancellable>()
-  
-  // MARK: – Init
+
   init(viewModel: HomeViewModel) {
     self.viewModel = viewModel
     super.init(nibName: nil, bundle: nil)
     title = "Favorites"
   }
-  required init?(coder: NSCoder) { fatalError() }
-  
-  // MARK: – Lifecycle
+
+  required init?(coder: NSCoder) {
+    fatalError("init(coder:) has not been implemented")
+  }
+
   override func viewDidLoad() {
     super.viewDidLoad()
     view.backgroundColor = .systemBackground
     setupTableView()
     bindViewModel()
   }
-  
-  // MARK: – Setup
+
   private func setupTableView() {
     tableView.translatesAutoresizingMaskIntoConstraints = false
     tableView.register(
@@ -56,10 +53,8 @@ class FavoritesViewController: UIViewController {
         equalTo: view.bottomAnchor)
     ])
   }
-  
-  // MARK: – Bindings
+
   private func bindViewModel() {
-    // Combine allVMs + favoriteUUIDs, then filter
     viewModel.$allVMs
       .combineLatest(viewModel.$favoriteUUIDs)
       .map { allVMs, favUUIDs in
@@ -74,8 +69,8 @@ class FavoritesViewController: UIViewController {
   }
 }
 
-// MARK: – UITableViewDataSource
 extension FavoritesViewController: UITableViewDataSource {
+
   func tableView(_ tv: UITableView, numberOfRowsInSection section: Int) -> Int {
     favoriteVMs.count
   }
@@ -94,7 +89,6 @@ extension FavoritesViewController: UITableViewDataSource {
   }
 }
 
-// MARK: – UITableViewDelegate
 extension FavoritesViewController: UITableViewDelegate {
 
   func tableView(
@@ -106,8 +100,7 @@ extension FavoritesViewController: UITableViewDelegate {
     let detailVC = CoinDetailViewController(uuid: vm.uuid)
     navigationController?.pushViewController(detailVC, animated: true)
   }
-  
-  // Swipe left → unfavorite
+
   func tableView(
     _ tv: UITableView,
     trailingSwipeActionsConfigurationForRowAt indexPath: IndexPath

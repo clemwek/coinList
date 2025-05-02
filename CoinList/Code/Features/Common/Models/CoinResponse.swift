@@ -11,6 +11,7 @@ struct CoinResponseData: Decodable {
   let coins: [CoinModel]
 }
 
+
 struct CoinResponse: Decodable {
 
   let status: String
