@@ -10,37 +10,41 @@ import Combine
 
 class CoinCellViewModel: ObservableObject {
 
-  private let coin: CoinModel
-
+  @Published var iconImage: UIImage?
   let uuid: String
   let name: String
   let priceText: String
   let changeText: String
   let changeValue: Double
-  @Published var iconImage: UIImage?
 
   private var cancellable: AnyCancellable?
+  private let imageLoader: ImageLoading
 
-  init(coin: CoinModel) {
-    self.coin        = coin
-    self.uuid        = coin.uuid
-    self.name        = coin.name
+  init(coin: CoinModel, imageLoader: ImageLoading) {
+    self.uuid = coin.uuid
+    self.name = coin.name
     self.changeValue = Double(coin.change) ?? 0
-    self.priceText   = String(format: "$%.2f", Double(coin.price) ?? 0)
-    self.changeText  = String(format: "%+.2f%%", changeValue)
+    self.priceText = String(format: "$%.2f", Double(coin.price) ?? 0)
+    self.changeText = String(format: "%+.2f%%", changeValue)
+    self.imageLoader = imageLoader
 
     loadImage(from: coin.iconUrl)
   }
 
   private func loadImage(from urlString: String) {
-    guard let url = URL(string: urlString) else { return }
-    cancellable = ImageLoader.shared
-      .publisher(for: url)
+    guard let url = URL(string: urlString) else {
+      iconImage = UIImage(systemName: "coloncurrencysign.circle.fill")
+      return
+    }
+
+    cancellable = imageLoader.loadImage(from: url)
       .receive(on: DispatchQueue.main)
-      .assign(to: \.iconImage, on: self)
+      .sink { [weak self] image in
+        self?.iconImage = image ?? UIImage(systemName: "coloncurrencysign.circle.fill")
+      }
   }
 
-  deinit {
+  func cancelImageLoading() {
     cancellable?.cancel()
   }
 }

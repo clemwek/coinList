@@ -7,6 +7,6 @@
 
 struct CoinRequest: Encodable {
 
-  var page: Int?
+  var offset: Int?
   var limit: Int?
 }

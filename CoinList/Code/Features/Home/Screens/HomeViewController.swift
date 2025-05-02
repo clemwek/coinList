@@ -15,6 +15,8 @@ class HomeViewController: UIViewController {
   private let tableView = UITableView()
   private let searchController = UISearchController(searchResultsController: nil)
 
+  private let refreshControl = UIRefreshControl()
+
   init(viewModel: HomeViewModel = HomeViewModel()) {
     self.viewModel = viewModel
     super.init(nibName: nil, bundle: nil)
@@ -35,7 +37,7 @@ class HomeViewController: UIViewController {
     viewModel.fetchCoins()
   }
   
-  @objc private func didPullToRefresh() {
+  @objc private func refreshData() {
     viewModel.fetchCoins()
   }
 
@@ -44,6 +46,25 @@ class HomeViewController: UIViewController {
     searchController.obscuresBackgroundDuringPresentation = false
     searchController.searchBar.delegate = self
     navigationItem.hidesSearchBarWhenScrolling = false
+  }
+  
+  private func showErrorAlert(error: APIError) {
+    let alert = UIAlertController(
+      title: "Error",
+      message: error.localizedDescription,
+      preferredStyle: .alert
+    )
+
+    alert.addAction(UIAlertAction(
+      title: "Retry",
+      style: .default,
+      handler: { [weak self] _ in
+        self?.viewModel.retryLastFetch()
+      }
+    ))
+
+    alert.addAction(UIAlertAction(title: "Cancel", style: .cancel))
+    present(alert, animated: true)
   }
 
   private func setupTableView() {
@@ -58,7 +79,7 @@ class HomeViewController: UIViewController {
     tableView.keyboardDismissMode = .onDrag
 
     let refresh = UIRefreshControl()
-    refresh.addTarget(self, action: #selector(didPullToRefresh), for: .valueChanged)
+    refresh.addTarget(self, action: #selector(refreshData), for: .valueChanged)
     tableView.refreshControl = refresh
 
     view.addSubview(tableView)
@@ -88,14 +109,9 @@ class HomeViewController: UIViewController {
     viewModel.$error
       .compactMap { $0 }
       .receive(on: DispatchQueue.main)
-      .sink { [weak self] err in
-        let alert = UIAlertController(
-          title: "Error",
-          message: err.localizedDescription,
-          preferredStyle: .alert
-        )
-        alert.addAction(.init(title: "OK", style: .default))
-        self?.present(alert, animated: true)
+      .sink { [weak self] error in
+        self?
+          .showErrorAlert(error: error)
       }
       .store(in: &subs)
 

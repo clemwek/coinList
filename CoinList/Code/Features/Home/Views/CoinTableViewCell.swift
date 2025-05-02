@@ -19,7 +19,13 @@ class CoinTableViewCell: UITableViewCell {
   static let reuseID = "CoinCell"
 
   private var subscriptions = Set<AnyCancellable>()
-  private var viewModel: CoinCellViewModel?
+  private var viewModel: CoinCellViewModel? {
+    didSet {
+      if let vm = viewModel {
+        configure(with: vm)
+      }
+    }
+  }
 
   private let iconView: UIImageView = {
     let iv = UIImageView()
@@ -62,6 +68,7 @@ class CoinTableViewCell: UITableViewCell {
   override func prepareForReuse() {
     super.prepareForReuse()
 
+    viewModel?.cancelImageLoading()
     subscriptions.forEach { $0.cancel() }
     subscriptions.removeAll()
     iconView.image = nil
@@ -79,9 +86,9 @@ class CoinTableViewCell: UITableViewCell {
 
     // bind the icon
     vm.$iconImage
-      .receive(on: RunLoop.main)
-      .sink { [weak self] img in
-        self?.iconView.image = img
+      .receive(on: DispatchQueue.main)
+      .sink { [weak self] image in
+        self?.iconView.image = image
       }
       .store(in: &subscriptions)
   }

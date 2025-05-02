@@ -13,7 +13,7 @@ final class DefaultAPIService: APIService {
   private let decoder = JSONDecoder()
 
   func fetchCoins(page: Int, limit: Int) -> AnyPublisher<[CoinModel], APIError> {
-    let req = CoinRequest(page: page, limit: limit)
+    let req = CoinRequest(offset: page, limit: limit)
     return CoinActions
       .publisher(request: req)
       .map { $0.data.coins }
